@@ -2,16 +2,37 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
+import { useRouter } from "next/navigation";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
+import { oneDark } from "react-syntax-highlighter/dist/cjs/styles/prism";
 import * as htmlToImage from "html-to-image";
 
 export default function Dashboard() {
+
+  const router = useRouter();
 
   const [snippets,setSnippets] = useState<any[]>([]);
   const [title,setTitle] = useState("");
   const [language,setLanguage] = useState("");
   const [code,setCode] = useState("");
+  const [search,setSearch] = useState("");
+
+  useEffect(() => {
+
+    const checkUser = async () => {
+
+      const { data } = await supabase.auth.getUser();
+
+      if(!data.user){
+        router.push("/login");
+      }
+
+    };
+
+    checkUser();
+    fetchSnippets();
+
+  }, []);
 
   const fetchSnippets = async () => {
 
@@ -24,10 +45,6 @@ export default function Dashboard() {
     }
 
   };
-
-  useEffect(()=>{
-    fetchSnippets();
-  },[]);
 
   const createSnippet = async () => {
 
@@ -77,6 +94,7 @@ export default function Dashboard() {
     navigator.clipboard.writeText(url);
 
     alert("Link copied!");
+
   };
 
   const exportImage = async (id:number) => {
@@ -91,7 +109,12 @@ export default function Dashboard() {
     link.download = "snippet.png";
     link.href = dataUrl;
     link.click();
+
   };
+
+  const filteredSnippets = snippets.filter((snippet) =>
+    snippet.title.toLowerCase().includes(search.toLowerCase())
+  );
 
   return (
 
@@ -111,12 +134,12 @@ export default function Dashboard() {
         marginBottom:"30px"
       }}>
 
-        <h1 style={{fontSize:"28px"}}>SnippetVault</h1>
+        <h1>SnippetVault</h1>
 
         <button
           onClick={async ()=>{
-          await supabase.auth.signOut();
-            window.location.href="/login";
+            await supabase.auth.signOut();
+            router.push("/login");
           }}
           style={{
             padding:"8px 16px",
@@ -133,7 +156,7 @@ export default function Dashboard() {
       </div>
 
 
-      {/* Create snippet */}
+      {/* Create Snippet */}
 
       <h2>Create Snippet</h2>
 
@@ -193,16 +216,32 @@ export default function Dashboard() {
       </button>
 
 
-      {/* Snippet list */}
+      {/* Search */}
+
+      <h2 style={{marginTop:"40px"}}>Search Snippets</h2>
+
+      <input
+        placeholder="Search by title..."
+        value={search}
+        onChange={(e)=>setSearch(e.target.value)}
+        style={{
+          width:"100%",
+          padding:"10px",
+          marginTop:"10px",
+          borderRadius:"6px",
+          border:"1px solid #ccc"
+        }}
+      />
+
+
+      {/* Snippet List */}
 
       <h2 style={{marginTop:"40px"}}>Your Snippets</h2>
 
-      {snippets.length === 0 ? (
-        <p style={{color:"#6b7280"}}>
-          No snippets yet. Create your first snippet 🚀
-        </p>
+      {filteredSnippets.length === 0 ? (
+        <p>No snippets found.</p>
       ) : (
-        snippets.map((snippet)=>(
+        filteredSnippets.map((snippet)=>(
           <div
             id={`snippet-${snippet.id}`}
             key={snippet.id}
@@ -212,8 +251,7 @@ export default function Dashboard() {
               padding:"20px",
               marginTop:"20px",
               background:"#111827",
-              color:"white",
-              boxShadow:"0 4px 10px rgba(0,0,0,0.2)"
+              color:"white"
             }}
           >
 
@@ -283,5 +321,6 @@ export default function Dashboard() {
       )}
 
     </div>
+
   );
 }
